@@ -1,8 +1,11 @@
 // include library to read and write from flash memory
 #include <EEPROM.h>
 
-// define the number of bytes you want to access
-#define EEPROM_SIZE 2 // 1 byte for runtime, the other for frequency
+/* Define the number of bytes you want to access
+ * 1 byte for 'runtime', the other for 'frequency'.
+ * That means that maximum 'runtime'/'frequency' value will be 255, moreover - I can operate the valve for hole minutes, e.g 0.5 minute wont work - I cant store that in a BYTE
+*/
+#define EEPROM_SIZE 2
 
 
 #include <ArduinoOTA.h>
@@ -11,12 +14,18 @@
 #include <WiFiClient.h>
 #include <WiFiAP.h>
 
+/* These are plugins that needed to be 'installed' in the /path/to/your/Arduino/libraries/
+ * When I say 'installed': just download the backage zip from theirs GITHUB, and unsip them 'libraries' dict.
+ * Then, restart your Arduino IDE.
+ * ESPAsyncWebServer    - https://github.com/me-no-dev/ESPAsyncWebServer
+ * SPIFF                - https://randomnerdtutorials.com/install-esp32-filesystem-uploader-arduino-ide/
+*/
 #include "ESPAsyncWebServer.h"
 #include "SPIFFS.h"
 
 #define VALVE_SWITCH_PIN 18
 #define MOTOR_PIN 5
-#define LED_BUILTIN 2   // Set the GPIO pin where you connected your test LED or comment this line out if your dev board has a built-in LED
+//#define LED_BUILTIN 2   // Set the GPIO pin where you connected your test LED or comment this line out if your dev board has a built-in LED
 
 
 // Set these to your desired credentials.
@@ -25,8 +34,13 @@ const char *password  = "AtzizHaham";
 
 AsyncWebServer server(80);
 
-String ledState       = "ON";
-String valve_position = "Closed";
+//String ledState       = "ON";
+//String valve_position = "Closed";
+
+/* ****************************************************************************
+ * ********************************** Some globals ****************************
+ * ****************************************************************************
+*/
 bool isSystemWatering = false;
 
 #define RUNTIME_OFF_VALUE -1
@@ -207,7 +221,7 @@ void processFrequencyRequest(const AsyncWebParameter* p){
       Serial.println("processFrequencyRequest::Frequency RESETED");
     }
     
-    // Check If is is diffirent from previus runtime stored in memory:
+    // Check If is is different from previous runtime stored in memory:
     if (p->value().toInt() != frequency_hours){
       frequency_hours = p->value().toInt();
       EEPROM.write(1, p->value().toInt());
@@ -234,8 +248,8 @@ void init(){
   // An infinite task.
   xTaskCreate(
       frequencyTask,                    // Function that should be called
-      "Initiating frequencyTask",   // Name of the task (for debugging)
-      1000,                           // Stack size (bytes)
+      "Initiating frequencyTask",       // Name of the task (for debugging)
+      1000,                             // Stack size (bytes)
       NULL,            // Parameter to pass
       1,               // Task priority
       NULL             // Task handle
@@ -246,10 +260,11 @@ void init(){
 
 
 void initPints(){
-  pinMode(LED_BUILTIN, OUTPUT);
+//  pinMode(LED_BUILTIN, OUTPUT);
   pinMode(MOTOR_PIN, OUTPUT);
   pinMode(VALVE_SWITCH_PIN, INPUT);
 }
+
 
 void initEEPROM(){
   // initialize EEPROM with predefined size
@@ -257,7 +272,7 @@ void initEEPROM(){
   Serial.println("initEEPROM::Configuring EEPROM...");
   EEPROM.begin(EEPROM_SIZE);
 
-  // Restore runtime and frequency
+  // Restore runtime and frequency from memory.
   runtime = EEPROM.read(0);
   frequency_hours = EEPROM.read(1);
 
@@ -268,7 +283,7 @@ void initEEPROM(){
 
 
 void initValvePosition(void * parameter){
-  // Resetting valvev position
+  // Resetting valve position
   Serial.println();
   Serial.println("initValvePosition::Reseting valve position...");
   openValve();
@@ -309,7 +324,7 @@ bool setUpServer(){
     AsyncWebParameter* p = request->getParam(0);
     processRuntimeRequest(p);
     
-    // Sending back the SPIFF to the client with updated plaseholder, so the client could see the updated changes.
+    // Send back to client "OK" message, and the desired value (as a confirmation)
     if(runtime == RUNTIME_OFF_VALUE){
       request->send_P(200, "text/plain", "off"); 
     }
@@ -359,6 +374,7 @@ bool setUpServer(){
     Serial.println("An Error has occurred while mounting SPIFFS");
     return false;
   }
+
   Serial.println("Server started");
   return true;
 }
@@ -405,14 +421,6 @@ void setup() {
 }
 
 
-
-
-
-
-
-
 void loop() {
   ArduinoOTA.handle();
-
-  
 }
