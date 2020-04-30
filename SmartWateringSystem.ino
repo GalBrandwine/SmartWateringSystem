@@ -137,7 +137,8 @@ void frequencyTask( void* pvParameters )
           
         }
     }
-    
+
+    seconds = seconds % (frequency_hours*60);
     time_left_until_next_watering_min = frequency_hours*60 - seconds/60;//hours_passed_from_last_watering;
     
     if (frequency_hours == FREQUENCY_RESET_VALUE){
