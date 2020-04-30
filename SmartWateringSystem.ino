@@ -24,7 +24,7 @@
 #include "SPIFFS.h"
 
 #define VALVE_SWITCH_PIN 18
-#define MOTOR_PIN 5
+#define MOTOR_PIN 19
 //#define LED_BUILTIN 2   // Set the GPIO pin where you connected your test LED or comment this line out if your dev board has a built-in LED
 
 
@@ -79,7 +79,7 @@ void frequencyTask( void* pvParameters )
   BaseType_t xReturned;
   // This TaskHandle will allow 
   TaskHandle_t xHandle = NULL;
-  double seconds = 0;
+  int seconds = 0;
   int hours_passed_from_last_watering = 0; //max watering interval is 168 hours (a week)
   
   for (;;)
@@ -87,9 +87,10 @@ void frequencyTask( void* pvParameters )
     vTaskDelay( pdMS_TO_TICKS( 1000 ) );
     seconds++;
     
-    if (seconds >= 3600){
+//    if (seconds >= 3600){
+    if (seconds % 3600 == 0){
       hours_passed_from_last_watering++;
-      seconds = 0;
+//      seconds = 0;
     }
     
     if (hours_passed_from_last_watering >= frequency_hours){ // Time to water the plants.
@@ -107,7 +108,7 @@ void frequencyTask( void* pvParameters )
         }
       
       
-      seconds = 0;
+//      seconds = 0;
       hours_passed_from_last_watering = 0;
     }
 
@@ -151,22 +152,28 @@ void frequencyTask( void* pvParameters )
 
 
 void closeValve() {
+    Serial.println("closing");  
+  Serial.println(digitalRead(VALVE_SWITCH_PIN));
   while (digitalRead(VALVE_SWITCH_PIN) == 1) {
-    digitalWrite(MOTOR_PIN, HIGH);              
+//    Serial.println("closing");
+    digitalWrite(MOTOR_PIN, LOW); // OPEN the MOSFET
     delay(1);
   }
-  digitalWrite(MOTOR_PIN, LOW);
+  digitalWrite(MOTOR_PIN, HIGH);  // CLOSE the MOSFET 
   Serial.println("Valve closed");
 }
 
 
 void openValve() {
+  Serial.println("opening");
+  Serial.println(digitalRead(VALVE_SWITCH_PIN));
   while (digitalRead(VALVE_SWITCH_PIN) == 0) {
-    digitalWrite(MOTOR_PIN, HIGH);               
+//    Serial.println("opening");
+    digitalWrite(MOTOR_PIN, LOW);               
     delay(1);
   }
   Serial.println("Valve opened");
-  digitalWrite(MOTOR_PIN, LOW);
+  digitalWrite(MOTOR_PIN, HIGH);
 }
 
 
@@ -260,6 +267,7 @@ void init(){
 
 
 void initPints(){
+  Serial.println("initPints::Initiating pins");
 //  pinMode(LED_BUILTIN, OUTPUT);
   pinMode(MOTOR_PIN, OUTPUT);
   pinMode(VALVE_SWITCH_PIN, INPUT);
@@ -423,4 +431,5 @@ void setup() {
 
 void loop() {
   ArduinoOTA.handle();
+//  Serial.println(digitalRead(VALVE_SWITCH_PIN));
 }
