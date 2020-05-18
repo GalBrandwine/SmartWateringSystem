@@ -3,7 +3,8 @@
 
 /* Define the number of bytes you want to access
  * 1 byte for 'runtime', the other for 'frequency'.
- * That means that maximum 'runtime'/'frequency' value will be 255, moreover - I can operate the valve for hole minutes, e.g 0.5 minute wont work - I cant store that in a BYTE
+ * That means that maximum 'runtime'/'frequency' value will be 255, moreover - I can operate the valve for hole minutes,
+ * e.g 0.5 minute wont work - I cant store that in a BYTE.
 */
 #define EEPROM_SIZE 3
 
@@ -57,23 +58,9 @@ int frequency_hours = FREQUENCY_RESET_VALUE;
 int time_left_until_next_watering_min = frequency_hours*60;
 
 
-//void runtimeTask(void * parameter){
-//  int runtime_temp = *((int*)parameter);
-//
-//  isSystemWatering = true;
-//  openForXMinute(runtime_temp);
-//  isSystemWatering = false;
-//
-//  // When you're done, call vTaskDelete. Don't forget this!
-//  vTaskDelete(NULL);
-//}
-
-
 void frequencyTask( void* pvParameters )
 {
-  BaseType_t xReturned;
-  // This TaskHandle will allow
-  TaskHandle_t xHandle = NULL;
+
   int seconds = 0;
   int valveTime = 0;
   int hours_passed_from_last_watering = 0; //max watering interval is 168 hours (a week)
@@ -86,7 +73,7 @@ void frequencyTask( void* pvParameters )
     if (seconds % 3600 == 0){//10
       hours_passed_from_last_watering++;
     }
-
+    // Debug
 //    Serial.print("frequencyTask::isSystemWatering: ");Serial.println(isSystemWatering);
 //    Serial.print("frequencyTask::FREQUENCY_RESET_VALUE: ");Serial.println(FREQUENCY_RESET_VALUE);
 //    Serial.print("frequencyTask::frequency_hours: ");Serial.println(frequency_hours);
@@ -96,8 +83,6 @@ void frequencyTask( void* pvParameters )
 //    Serial.print("frequencyTask::valveTime: ");Serial.println(valveTime);
 //    Serial.println("");
 
-
-
     if (frequency_hours != FREQUENCY_RESET_VALUE){
         seconds                           = seconds % (frequency_hours*3600);       // Frequency_hours in seconds. (If frequency_hours==0) then it throws DivisionByZero!!)
         time_left_until_next_watering_min = frequency_hours*60 - seconds/60;        // hours_passed_from_last_watering;
@@ -106,11 +91,10 @@ void frequencyTask( void* pvParameters )
         seconds                         = 0;
         valveTime                       = seconds;
         hours_passed_from_last_watering = 0;
-
         Serial.println("frequencyTask::hours_passed_from_last_watering RESETED ");
     }
 
-    xSemaphoreTake( xMutex, portMAX_DELAY ); //start critical section
+    xSemaphoreTake( xMutex, portMAX_DELAY ); // Start critical section, that accessing SHARED data.
     switch (valveMode) {
       case VALVE_MODES::timer:
         Serial.print(seconds - valveTime);Serial.print(" ");Serial.println(runtime*60);
@@ -180,19 +164,6 @@ bool openValve() {
   return true;
 }
 
-
-void openForXMinute(int minutes) {
-
-  const TickType_t xDelay = minutes*60000 / portTICK_PERIOD_MS; // X minutes
-  Serial.print("openForXMinute::Opening valve for "); Serial.print(minutes); Serial.println(" minutes.");
-
-  openValve();
-  vTaskDelay( xDelay);
-//  for ( uint32_t tStart = millis();  (millis() - tStart) < period;  ) {} // Simple buisy-wait loop. using milis() instead of delay() wont halt the arduino. watch dog dont like this one.
-  closeValve();
-}
-
-
 void processRuntimeRequest(const AsyncWebParameter* p){
     xSemaphoreTake( xMutex, portMAX_DELAY );
     Serial.println();
@@ -200,7 +171,7 @@ void processRuntimeRequest(const AsyncWebParameter* p){
     Serial.println(p->name());
     Serial.println(p->value());
 
-    // Check If is is diffirent from previus runtime stored in memory:
+    // Check If is is different from previous runtime stored in memory:
     if (p->value().equals("off")) {
       valveMode = VALVE_MODES::valve_close;
       EEPROM.write(2, valveMode);
@@ -227,7 +198,7 @@ void processRuntimeRequest(const AsyncWebParameter* p){
     }
 
     Serial.println("Runtime saved in flash memory");
-    xSemaphoreGive( xMutex );
+    xSemaphoreGive( xMutex );   // Release semaphore.
 }
 
 
@@ -272,7 +243,7 @@ void initPints(){
 
 
 void initEEPROM(){
-//  writeToEeeprom();
+//  writeToEeeprom(); // DEBUG
 
   // initialize EEPROM with predefined size
   Serial.println();
@@ -309,13 +280,8 @@ void writeToEeeprom(){
 bool initValvePosition(){
   // Resetting valve position
   Serial.println();
-  Serial.println("initValvePosition::Reseting valve position...");
+  Serial.println("initValvePosition::Resetting valve position...");
 
-//  openValve();
-//  closeValve();
-
-  // When you're done, call vTaskDelete. Don't forget this!
-  // vTaskDelete(NULL);
   return openValve() && closeValve();
 }
 
@@ -415,7 +381,7 @@ void setup() {
     Serial.println("An Error has occurred while setUpServer(). STOPPING.");
     return;
   }
-
+    // xTaskCreate should be in SETUP() function - if not the scheduler is not working properly, and there's a xTaskCreate shadowing.
    xTaskCreate(
     frequencyTask,                    // Function that should be called
     "Initiating frequencyTask",       // Name of the task (for debugging)
@@ -454,8 +420,6 @@ void setup() {
   ArduinoOTA.begin();
 }
 
-
 void loop() {
   ArduinoOTA.handle();
-//  Serial.println(digitalRead(VALVE_SWITCH_PIN));
 }
